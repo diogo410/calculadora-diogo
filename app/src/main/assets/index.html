@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calculadora do Diogo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Sora:wght@400;500;600;700&display=swap">
+<style>
+:root {
+--bg:#E9EEF3; --dot:#C3CDD8; --panel:#FFFFFF; --panel-2:#F2F5F9; --edge:#D3DBE4; --ink:#0C1722; --muted:#5E7083;
+--key:#FFFFFF; --key-edge:#D3DBE4; --op:#E2EEF6; --op-ink:#0A5E86; --accent:#0A84B8; --accent-ink:#FFFFFF;
+--clr:#C2322B; --ok:#0F8A66; --warn:#A35F00; --bad:#C2322B; --wave:#0A84B8; --shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 8px 22px -12px rgba(12,23,34,.28);
+--sans:"Sora", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+--mono:"JetBrains Mono", ui-monospace, Consolas, "Roboto Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme="light"]) {
+--bg:#080D13; --dot:#16212C; --panel:#0F1822; --panel-2:#0B131B; --edge:#1D2B38; --ink:#E7EFF6; --muted:#7F93A6;
+--key:#142130; --key-edge:#223446; --op:#10283A; --op-ink:#6FD6FF; --accent:#35C6FF; --accent-ink:#04141D;
+--clr:#FF7A6E; --ok:#3FE0A8; --warn:#FFB84D; --bad:#FF7A6E; --wave:#35C6FF; --shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 10px 26px -14px rgba(0,0,0,.8);
+color-scheme: dark;
+}
+}
+:root[data-theme="dark"] {
+--bg:#080D13; --dot:#16212C; --panel:#0F1822; --panel-2:#0B131B; --edge:#1D2B38; --ink:#E7EFF6; --muted:#7F93A6;
+--key:#142130; --key-edge:#223446; --op:#10283A; --op-ink:#6FD6FF; --accent:#35C6FF; --accent-ink:#04141D;
+--clr:#FF7A6E; --ok:#3FE0A8; --warn:#FFB84D; --bad:#FF7A6E; --wave:#35C6FF; --shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 10px 26px -14px rgba(0,0,0,.8);
+color-scheme: dark;
+}
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+background-color:var(--bg); background-image:radial-gradient(var(--dot) 1px, transparent 1.2px); background-size:18px 18px;
+color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.45;
+padding-block:10px 32px; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px));
+}
+.app { max-width:440px; margin:0 auto; display:flex; flex-direction:column; gap:12px; }
+[hidden] { display:none !important; }
+button, input, select { font:inherit; color:inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.scope { position:relative; height:84px; border:1px solid var(--edge); border-radius:20px; background:var(--panel); box-shadow:var(--shadow); overflow:hidden; }
+.scope canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+.scope .tag { position:absolute; left:14px; top:10px; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+.scope .hz { position:absolute; right:14px; top:10px; font-family:var(--mono); font-size:11px; color:var(--muted); }
+.tabs { position:relative; display:grid; grid-template-columns:1fr 1fr; padding:4px; border:1px solid var(--edge); border-radius:16px; background:var(--panel-2); }
+.tabs .thumb { position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px); border-radius:12px; background:var(--accent); transition:transform .28s cubic-bezier(.3,.9,.3,1); }
+.tabs[data-on="e"] .thumb { transform:translateX(100%); }
+.tabs button { position:relative; z-index:1; border:0; background:none; padding:11px 8px; font-weight:600; font-size:14px; color:var(--muted); cursor:pointer; transition:color .2s; }
+.tabs button[aria-selected="true"] { color:var(--accent-ink); }
+.card { border:1px solid var(--edge); border-radius:24px; background:var(--panel); box-shadow:var(--shadow); padding:14px; display:flex; flex-direction:column; gap:14px; }
+.screen { border-radius:16px; background:var(--panel-2); border:1px solid var(--edge); padding:12px 16px; min-height:112px; display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-end; gap:4px; overflow:hidden; }
+.expr { font-family:var(--mono); font-size:17px; color:var(--muted); word-break:break-all; text-align:right; min-height:24px; }
+.result { font-family:var(--mono); font-weight:700; font-size:46px; letter-spacing:-.02em; line-height:1.1; word-break:break-all; text-align:right; }
+.result.err { font-size:19px; color:var(--bad); font-weight:500; letter-spacing:0; }
+.result.tick { animation:tick .18s ease-out; }
+@keyframes tick { from { opacity:.35; transform:translateY(4px); } to { opacity:1; transform:none; } }
+.keys { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; }
+.keys button { height:62px; border-radius:18px; border:1px solid var(--key-edge); background:var(--key); color:var(--ink); font-family:var(--mono); font-size:23px; font-weight:500; cursor:pointer; box-shadow:var(--shadow); transition:transform .08s, background .15s; }
+.keys button:active { transform:scale(.95); }
+.keys .op { background:var(--op); color:var(--op-ink); border-color:transparent; }
+.keys .clr { color:var(--clr); }
+.keys .eq { background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:700; }
+.hist { display:flex; flex-direction:column; }
+.lab { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:600; margin:0 0 6px; }
+.hist button { text-align:right; background:none; border:0; border-bottom:1px solid var(--edge); padding:9px 2px; font-family:var(--mono); font-size:14px; color:var(--ink); cursor:pointer; }
+.hist button:last-child { border-bottom:0; }
+.hist .none { color:var(--muted); font-size:13px; }
+.sec { display:flex; flex-direction:column; gap:12px; }
+.sec + .sec { border-top:1px solid var(--edge); padding-top:16px; }
+.sec h2 { margin:0; font-size:17px; font-weight:600; letter-spacing:-.01em; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.sec h2 small { font-family:var(--mono); font-size:11px; color:var(--muted); font-weight:400; letter-spacing:0; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.field { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.field > label, .field > .lab { margin:0; }
+input[type=number], select { width:100%; min-width:0; background:var(--panel-2); border:1px solid var(--edge); border-radius:14px; padding:12px 12px; font-family:var(--mono); font-size:17px; }
+select { appearance:none; -webkit-appearance:none; background-image:linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position:calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size:5px 5px; background-repeat:no-repeat; padding-right:30px; }
+.seg { display:grid; grid-auto-flow:column; grid-auto-columns:1fr; background:var(--panel-2); border:1px solid var(--edge); border-radius:14px; padding:3px; gap:3px; }
+.seg button { border:0; background:none; border-radius:11px; padding:10px 4px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; }
+.seg button[aria-checked="true"] { background:var(--accent); color:var(--accent-ink); }
+.chips { display:flex; gap:6px; }
+.chips button { flex:1; border:1px solid var(--edge); background:none; border-radius:10px; padding:5px 0; font-family:var(--mono); font-size:12px; color:var(--muted); cursor:pointer; }
+.chips button.on { border-color:var(--accent); color:var(--accent); }
+.read { display:flex; flex-direction:column; gap:10px; background:var(--panel-2); border:1px solid var(--edge); border-radius:18px; padding:14px; }
+.big { font-family:var(--mono); font-weight:700; font-size:44px; letter-spacing:-.03em; line-height:1.05; }
+.big small { font-size:15px; font-weight:400; color:var(--muted); letter-spacing:0; margin-left:4px; }
+.tiles { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.tile { border:1px solid var(--edge); border-radius:14px; padding:10px 12px; background:var(--panel); min-width:0; }
+.tile span { display:block; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+.tile b { display:block; font-family:var(--mono); font-size:20px; font-weight:700; margin-top:2px; overflow-wrap:anywhere; }
+.meter { position:relative; height:10px; border-radius:6px; background:var(--panel); border:1px solid var(--edge); overflow:visible; }
+.meter i { position:absolute; inset:0 auto 0 0; border-radius:6px; background:var(--ok); transition:width .3s, background .3s; }
+.meter u { position:absolute; top:-5px; bottom:-5px; width:2px; background:var(--ink); left:66.667%; border-radius:1px; }
+.meter-l { display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:4px; }
+.pill { align-self:flex-start; font-family:var(--mono); font-size:12px; letter-spacing:.06em; text-transform:uppercase; padding:4px 11px; border:1.5px solid currentColor; border-radius:99px; font-weight:500; }
+.pill.ok { color:var(--ok); } .pill.warn { color:var(--warn); } .pill.bad { color:var(--bad); } .pill.idle { color:var(--muted); }
+.link { align-self:flex-start; background:none; border:1px solid var(--edge); border-radius:12px; padding:8px 12px; font-size:13px; font-weight:600; color:var(--accent); cursor:pointer; }
+.note { color:var(--muted); font-size:12px; margin:0; }
+@media (prefers-reduced-motion: reduce) { .tabs .thumb, .meter i, .result.tick { transition:none; animation:none; } }
+</style>
+</head>
+<body>
+<main class="app">
+<div class="scope" aria-hidden="true">
+<canvas id="wave"></canvas>
+<span class="tag">Calculadora</span><span class="hz">3Φ · 60 Hz</span>
+</div>
+<div class="tabs" id="tabs" data-on="c" role="tablist">
+<span class="thumb"></span>
+<button role="tab" id="tab-c" aria-selected="true" aria-controls="p-c" type="button">Comum</button>
+<button role="tab" id="tab-e" aria-selected="false" aria-controls="p-e" type="button">Elétrica</button>
+</div>
+<section id="p-c" role="tabpanel" aria-labelledby="tab-c" class="card">
+<div class="screen" aria-live="polite"><div class="expr" id="expr"></div><div class="result" id="res">0</div></div>
+<div class="keys" id="keys"></div>
+<div class="hist"><p class="lab">Histórico</p><div id="hist"></div></div>
+</section>
+<section id="p-e" role="tabpanel" aria-labelledby="tab-e" class="card" hidden>
+<div class="sec">
+<h2>Corrente e disjuntor <small>NBR 5410 · 5.3.4.1</small></h2>
+<div class="grid2">
+<div class="field"><label class="lab" for="a-p">Potência</label><input id="a-p" type="number" inputmode="decimal" step="any" value="7.5"></div>
+<div class="field"><span class="lab">Unidade</span><div class="seg" id="a-u"></div></div>
+</div>
+<div class="field"><span class="lab">Sistema</span><div class="seg" id="a-s"></div></div>
+<div class="grid2">
+<div class="field"><label class="lab" for="a-v">Tensão (V)</label><input id="a-v" type="number" inputmode="decimal" step="any" value="220">
+<div class="chips" data-for="a-v"><button type="button">127</button><button type="button">220</button><button type="button">380</button></div></div>
+<div class="field"><label class="lab" for="a-f">Fator de potência</label><input id="a-f" type="number" inputmode="decimal" step="0.01" value="1"></div>
+</div>
+<div class="read" aria-live="polite">
+<div class="big"><span id="a-i">—</span><small>A de projeto</small></div>
+<div class="tiles">
+<div class="tile"><span>Disjuntor</span><b id="a-b">—</b></div>
+<div class="tile"><span>Cabo cobre</span><b id="a-c">—</b></div>
+</div>
+<button class="link" id="a-use" type="button">Usar esta corrente na queda de tensão</button>
+<p class="note">Cabo pela Tabela 36, método B1, PVC 70 °C, 30 °C ambiente, até 35 mm², sem agrupamento.</p>
+</div>
+</div>
+<div class="sec">
+<h2>Queda de tensão <small>NBR 5410 · 6.2.7</small></h2>
+<div class="grid2">
+<div class="field"><label class="lab" for="q-i">Corrente (A)</label><input id="q-i" type="number" inputmode="decimal" step="any" value="32"></div>
+<div class="field"><label class="lab" for="q-l">Comprimento (m)</label><input id="q-l" type="number" inputmode="decimal" step="any" value="40"></div>
+<div class="field"><label class="lab" for="q-s">Seção (mm²)</label><select id="q-s"></select></div>
+<div class="field"><label class="lab" for="q-v">Tensão (V)</label><input id="q-v" type="number" inputmode="decimal" step="any" value="380">
+<div class="chips" data-for="q-v"><button type="button">127</button><button type="button">220</button><button type="button">380</button></div></div>
+</div>
+<div class="field"><span class="lab">Sistema</span><div class="seg" id="q-q"></div></div>
+<div class="field"><span class="lab">Limite admitido</span><div class="seg" id="q-m"></div></div>
+<div class="read" aria-live="polite">
+<div class="big"><span id="q-p">—</span><small>%</small></div>
+<div><div class="meter"><i id="q-fill" style="width:0"></i><u></u></div><div class="meter-l"><span>0 %</span><span id="q-ll">limite 4 %</span><span id="q-mx">6 %</span></div></div>
+<span class="pill idle" id="q-pill">aguardando</span>
+<div class="tiles">
+<div class="tile"><span>Queda</span><b id="q-v2">—</b></div>
+<div class="tile"><span>Menor seção</span><b id="q-min">—</b></div>
+</div>
+<p class="note">Resistência a 70 °C, reatância de 0,08 mΩ/m e fator de potência 0,92.</p>
+</div>
+</div>
+</section>
+</main>
+<script>
+(function () {
+var $ = function (id) { return document.getElementById(id); };
+function fmt(n, d) { return n.toLocaleString('pt-BR', { minimumFractionDigits:d, maximumFractionDigits:d }); }
+function buzz() { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) {} }
+(function () {
+var cv = $('wave'), ctx = cv.getContext('2d'), w = 0, h = 0, dpr = 1, col = '#35C6FF', frame = 0, t0 = 0;
+var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function size() {
+var r = cv.getBoundingClientRect(); dpr = Math.min(2, window.devicePixelRatio || 1);
+w = Math.max(1, r.width); h = Math.max(1, r.height); cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function draw(ts) {
+if (frame++ % 20 === 0) { var c = getComputedStyle(document.documentElement).getPropertyValue('--wave').trim(); if (c) col = c; }
+var t = reduce ? 0 : (ts - t0) / 1000;
+ctx.clearRect(0, 0, w, h);
+var mid = h * 0.62, amp = h * 0.24;
+ctx.lineWidth = 1; ctx.strokeStyle = col; ctx.globalAlpha = .12;
+ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(w, mid); ctx.stroke();
+for (var k = 0; k < 3; k++) {
+ctx.beginPath();
+for (var x = 0; x <= w; x += 3) {
+var y = mid + Math.sin(x / w * Math.PI * 4 - t * 1.6 - k * 2 * Math.PI / 3) * amp;
+if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+}
+ctx.globalAlpha = [1, .55, .28][k]; ctx.lineWidth = [2.2, 1.6, 1.2][k]; ctx.strokeStyle = col; ctx.stroke();
+}
+ctx.globalAlpha = 1;
+if (!reduce) requestAnimationFrame(draw);
+}
+size(); t0 = performance.now(); requestAnimationFrame(draw);
+if (window.ResizeObserver) new ResizeObserver(function () { size(); if (reduce) requestAnimationFrame(draw); }).observe(cv);
+})();
+function tab(which) {
+var c = which === 'c';
+$('tabs').setAttribute('data-on', which);
+$('tab-c').setAttribute('aria-selected', c); $('tab-e').setAttribute('aria-selected', !c);
+$('p-c').hidden = !c; $('p-e').hidden = c;
+}
+$('tab-c').addEventListener('click', function () { tab('c'); });
+$('tab-e').addEventListener('click', function () { tab('e'); });
+var expr = '', hist = [];
+var KEYS = [['C','clr'],['(','op'],[')','op'],['÷','op'],['7'],['8'],['9'],['×','op'],['4'],['5'],['6'],['−','op'],['1'],['2'],['3'],['+','op'],['⌫','op'],['0'],[',',''],['=','eq']];
+var NAMES = { '÷':'dividir', '×':'multiplicar', '−':'subtrair', '+':'somar', '=':'igual', '⌫':'apagar', 'C':'limpar', ',':'vírgula' };
+KEYS.forEach(function (k) {
+var b = document.createElement('button'); b.type = 'button'; b.textContent = k[0]; if (k[1]) b.className = k[1];
+b.setAttribute('aria-label', NAMES[k[0]] || k[0]);
+b.addEventListener('click', function () { buzz(); press(k[0]); });
+$('keys').appendChild(b);
+});
+function evaluate(src) {
+var s = src.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-').replace(/,/g,'.').replace(/\s+/g,'');
+var i = 0;
+function peek() { return s[i]; }
+function num() { var m = /^\d*\.?\d+/.exec(s.slice(i)); if (!m) throw new Error('Conta incompleta'); i += m[0].length; return parseFloat(m[0]); }
+function atom() {
+var v;
+if (peek() === '(') { i++; v = sum(); if (peek() !== ')') throw new Error('Falta fechar parêntese'); i++; }
+else if (peek() === '-') { i++; v = -atom(); }
+else if (peek() === '+') { i++; v = atom(); }
+else v = num();
+while (peek() === '%') { i++; v = v / 100; }
+return v;
+}
+function term() {
+var v = atom();
+while (peek() === '*' || peek() === '/') { var o = s[i++], r = atom(); if (o === '*') v *= r; else { if (r === 0) throw new Error('Divisão por zero'); v /= r; } }
+return v;
+}
+function sum() { var v = term(); while (peek() === '+' || peek() === '-') { var o = s[i++], r = term(); v = o === '+' ? v + r : v - r; } return v; }
+if (!s) return 0;
+var out = sum();
+if (i < s.length) throw new Error('Conta inválida');
+return out;
+}
+function show(v) {
+if (!isFinite(v)) throw new Error('Resultado inválido');
+var r = Math.round(v * 1e10) / 1e10;
+return Math.abs(r) >= 1e15 ? r.toExponential(6).replace('.', ',') : r.toLocaleString('pt-BR', { maximumFractionDigits:10 });
+}
+function setRes(text, cls) {
+var r = $('res'); r.textContent = text; r.className = 'result' + (cls ? ' ' + cls : '');
+if (cls === 'tick') { void r.offsetWidth; }
+}
+function preview() {
+if (!expr) { setRes('0'); return; }
+try { setRes(show(evaluate(expr))); } catch (e) {  }
+}
+function draw() { $('expr').textContent = expr; preview(); }
+function press(k) {
+var last = expr.slice(-1);
+if (k === 'C') { expr = ''; $('expr').textContent = ''; setRes('0'); return; }
+else if (k === '⌫') expr = expr.slice(0, -1);
+else if (k === '=') {
+if (!expr) return;
+try {
+var v = evaluate(expr), t = show(v);
+hist.unshift({ e:expr, r:t }); hist = hist.slice(0, 6); drawHist();
+expr = String(Math.round(v * 1e10) / 1e10).replace('.', ',').replace('-', '−');
+$('expr').textContent = hist[0].e + ' ='; setRes(t, 'tick'); return;
+} catch (e) { setRes(e.message, 'err'); return; }
+}
+else if ('+−×÷'.indexOf(k) >= 0) {
+if (!expr && k !== '−') return;
+if ('+−×÷'.indexOf(last) >= 0) expr = expr.slice(0, -1);
+expr += k;
+}
+else if (k === ',') { var part = expr.split(/[+−×÷()]/).pop(); if (part.indexOf(',') >= 0) return; expr += part === '' ? '0,' : ','; }
+else expr += k;
+draw();
+}
+function drawHist() {
+var h = $('hist'); h.innerHTML = '';
+if (!hist.length) { h.innerHTML = '<div class="none">As contas aparecem aqui. Toque em uma para reutilizar o resultado.</div>'; return; }
+hist.forEach(function (x) {
+var b = document.createElement('button'); b.type = 'button'; b.textContent = x.e + ' = ' + x.r;
+b.addEventListener('click', function () { expr = x.r.replace(/\./g, ''); draw(); });
+h.appendChild(b);
+});
+}
+drawHist();
+document.addEventListener('keydown', function (ev) {
+if (!$('p-e').hidden || /INPUT|SELECT/.test(document.activeElement.tagName)) return;
+var m = { '*':'×', '/':'÷', '-':'−', 'Enter':'=', '=':'=', 'Backspace':'⌫', 'Escape':'C', '.':',' };
+var k = m[ev.key] || ev.key;
+if (/^[0-9+−×÷(),=⌫C]$/.test(k)) { ev.preventDefault(); press(k); }
+});
+var SEC = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95];
+var AMP = { 1.5:[17.5,15.5], 2.5:[24,21], 4:[32,28], 6:[41,36], 10:[57,50], 16:[76,68], 25:[101,89], 35:[125,111] };
+var BRK = [6,10,16,20,25,32,40,50,63,70,80,90,100,125];
+var ST = { au:'1000', as:'mono', qs:'tri', qm:'4' };
+var sel = $('q-s');
+SEC.forEach(function (s) { var o = document.createElement('option'); o.value = s; o.textContent = fmt(s, s % 1 ? 1 : 0) + ' mm²'; if (s === 10) o.selected = true; sel.appendChild(o); });
+function n(id) { var v = parseFloat(String($(id).value).replace(',', '.')); return isFinite(v) ? v : 0; }
+function seg(id, opts, key, cb) {
+var box = $(id); box.setAttribute('role', 'radiogroup');
+opts.forEach(function (o) {
+var b = document.createElement('button'); b.type = 'button'; b.textContent = o[1]; b.setAttribute('role', 'radio');
+b.setAttribute('aria-checked', ST[key] === o[0]);
+b.addEventListener('click', function () {
+ST[key] = o[0]; buzz();
+Array.prototype.forEach.call(box.children, function (x) { x.setAttribute('aria-checked', x === b); });
+cb();
+});
+box.appendChild(b);
+});
+}
+function chips(inputId) {
+var inp = $(inputId), box = document.querySelector('.chips[data-for="' + inputId + '"]');
+function mark() { Array.prototype.forEach.call(box.children, function (b) { b.className = parseFloat(inp.value) === parseFloat(b.textContent) ? 'on' : ''; }); }
+Array.prototype.forEach.call(box.children, function (b) { b.addEventListener('click', function () { inp.value = b.textContent; buzz(); mark(); inp.dispatchEvent(new Event('input')); }); });
+inp.addEventListener('input', mark); mark();
+}
+function calcA() {
+var P = n('a-p') * parseFloat(ST.au), V = n('a-v'), fp = n('a-f'), sys = ST.as;
+if (!(P > 0 && V > 0 && fp >= 0.1 && fp <= 1)) { $('a-i').textContent = '—'; $('a-b').textContent = '—'; $('a-c').textContent = '—'; return; }
+var I = P / ((sys === 'tri' ? Math.sqrt(3) : 1) * V * fp);
+$('a-i').textContent = fmt(I, 1);
+var b = 0; for (var i = 0; i < BRK.length; i++) { if (BRK[i] >= I) { b = BRK[i]; break; } }
+if (!b) { $('a-b').textContent = '> 125 A'; $('a-c').textContent = '—'; return; }
+$('a-b').textContent = b + ' A';
+var col = sys === 'tri' ? 1 : 0, f = null;
+for (var j = 0; j < SEC.length; j++) { var a = AMP[SEC[j]]; if (a && a[col] >= b) { f = SEC[j]; break; } }
+$('a-c').textContent = f ? fmt(f, f % 1 ? 1 : 0) + ' mm²' : '> 35 mm²';
+}
+function dv(sys, I, L, S) { var k = sys === 'tri' ? Math.sqrt(3) : 2, fp = 0.92; return k * I * L * ((0.0225 / S) * fp + 0.00008 * Math.sqrt(1 - fp * fp)); }
+function calcQ() {
+var I = n('q-i'), L = n('q-l'), S = parseFloat($('q-s').value), V = n('q-v'), sys = ST.qs, lim = parseFloat(ST.qm), pill = $('q-pill');
+$('q-ll').textContent = 'limite ' + lim + ' %'; $('q-mx').textContent = fmt(lim * 1.5, 1) + ' %';
+if (!(I > 0 && L > 0 && V > 0)) { $('q-p').textContent = '—'; $('q-v2').textContent = '—'; $('q-min').textContent = '—'; $('q-fill').style.width = '0'; pill.className = 'pill idle'; pill.textContent = 'dados incompletos'; return; }
+var d = dv(sys, I, L, S), p = d / V * 100;
+$('q-p').textContent = fmt(p, 2); $('q-v2').textContent = fmt(d, 2) + ' V';
+var c = p > lim ? 'bad' : p >= lim * 0.9 ? 'warn' : 'ok';
+pill.className = 'pill ' + c; pill.textContent = c === 'bad' ? 'acima do limite' : c === 'warn' ? 'no limite' : 'dentro do limite';
+var f = $('q-fill'); f.style.width = Math.min(100, p / (lim * 1.5) * 100) + '%'; f.style.background = 'var(--' + c + ')';
+var m = null; for (var i = 0; i < SEC.length; i++) { if (dv(sys, I, L, SEC[i]) / V * 100 <= lim) { m = SEC[i]; break; } }
+$('q-min').textContent = m ? fmt(m, m % 1 ? 1 : 0) + ' mm²' : '> 95 mm²';
+}
+seg('a-u', [['1','W'], ['1000','kW']], 'au', calcA);
+seg('a-s', [['mono','Mono'], ['bi','Bi'], ['tri','Tri']], 'as', calcA);
+seg('q-q', [['mono','Mono / Bi'], ['tri','Trifásico']], 'qs', calcQ);
+seg('q-m', [['4','4 %'], ['5','5 %'], ['7','7 %']], 'qm', calcQ);
+chips('a-v'); chips('q-v');
+['a-p','a-v','a-f'].forEach(function (id) { $(id).addEventListener('input', calcA); });
+['q-i','q-l','q-s','q-v'].forEach(function (id) { $(id).addEventListener('input', calcQ); });
+$('a-use').addEventListener('click', function () {
+var P = n('a-p') * parseFloat(ST.au), V = n('a-v'), fp = n('a-f');
+if (!(P > 0 && V > 0 && fp > 0)) return;
+$('q-i').value = (Math.round(P / ((ST.as === 'tri' ? Math.sqrt(3) : 1) * V * fp) * 10) / 10);
+$('q-v').value = V;
+$('q-v').dispatchEvent(new Event('input')); ST.qs = ST.as === 'tri' ? 'tri' : 'mono';
+Array.prototype.forEach.call($('q-q').children, function (b, i) { b.setAttribute('aria-checked', ['mono','tri'][i] === ST.qs); });
+calcQ(); buzz();
+});
+calcA(); calcQ();
+})();
+</script>
+</body>
+</html>
